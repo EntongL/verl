@@ -26,6 +26,7 @@ from verl.utils.device import (
     get_resource_name,
     get_torch_device,
     get_visible_devices_keyword,
+    logical_index_from_visible_devices,
 )
 
 from .decorator import Dispatch, Execute, register
@@ -275,8 +276,11 @@ class Worker(WorkerHelper):
             # environment variable for each actor, unless
             # RAY_EXPERIMENTAL_NOSET_*_VISIBLE_DEVICES is set,
             # so we need to set local rank when the flag is set.
+            # Ray reports the id written in ASCEND_RT_VISIBLE_DEVICES / CUDA_VISIBLE_DEVICES.
+            # After that variable is applied, set_device expects the position in the list.
             device_name = get_resource_name()
-            local_rank = ray.get_runtime_context().get_accelerator_ids()[device_name][0]
+            accelerator_id = ray.get_runtime_context().get_accelerator_ids()[device_name][0]
+            local_rank = logical_index_from_visible_devices(accelerator_id)
             os.environ["LOCAL_RANK"] = local_rank
             get_torch_device().set_device(int(local_rank))
 

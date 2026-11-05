@@ -93,6 +93,36 @@ def get_visible_devices_keyword() -> str:
     return get_platform().visible_devices_envvar()
 
 
+def logical_index_from_visible_devices(accelerator_id: str | int, visible_devices: str | None = None) -> str:
+    """Map a Ray accelerator id to the logical device index.
+
+    ``ASCEND_RT_VISIBLE_DEVICES=2,3`` renumbers those cards to logical ids 0 and 1.
+    Ray still reports the original id from that variable (``"2"`` or ``"3"``), and
+    ``set_device`` only accepts the logical index. A zero-based list such as
+    ``0,1,2,3`` is unchanged because each listed id already equals its index.
+
+    Args:
+        accelerator_id: Device id reported by Ray.
+        visible_devices: Visible-device list. When omitted, the current
+            platform's visible-device environment variable is read.
+
+    Returns:
+        Logical index as a decimal string. The original id is returned when the
+        visible list is unset or does not contain that id.
+    """
+    accelerator_id = str(accelerator_id).strip()
+    if visible_devices is None:
+        visible_devices = os.environ.get(get_visible_devices_keyword())
+    if not visible_devices:
+        return accelerator_id
+
+    visible_ids = [device_id.strip() for device_id in visible_devices.split(",") if device_id.strip()]
+    try:
+        return str(visible_ids.index(accelerator_id))
+    except ValueError:
+        return accelerator_id
+
+
 def get_device_name() -> str:
     """Get the device type string based on available accelerators.
 
